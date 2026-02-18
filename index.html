@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏮 元宵節雙語猜燈謎大會</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .font-serif { font-family: 'Noto Serif TC', serif; }
+        .animate-bounce-slow { animation: bounce 3s infinite; }
+        .lantern-shadow { box-shadow: 0 0 50px rgba(255, 200, 0, 0.6); }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+    </style>
+</head>
+<body class="bg-red-900 text-gray-100 min-h-screen overflow-hidden relative selection:bg-yellow-500 selection:text-red-900">
+
+    <!-- 背景裝飾 -->
+    <div class="absolute top-0 left-8 w-20 h-32 bg-red-600 rounded-b-3xl opacity-90 border-t-8 border-yellow-600 z-0 flex items-center justify-center animate-bounce-slow lantern-shadow">
+        <span class="text-yellow-300 text-4xl font-serif font-bold opacity-60 mt-4">春</span>
+    </div>
+    <div class="absolute top-0 right-8 w-20 h-32 bg-red-600 rounded-b-3xl opacity-90 border-t-8 border-yellow-600 z-0 flex items-center justify-center animate-bounce-slow lantern-shadow" style="animation-delay: 1.5s;">
+        <span class="text-yellow-300 text-4xl font-serif font-bold opacity-60 mt-4">福</span>
+    </div>
+
+    <!-- 主容器 -->
+    <div id="app" class="relative z-10 container mx-auto px-4 py-4 max-w-4xl h-screen flex flex-col">
+        <!-- 導航列 -->
+        <nav class="flex justify-between items-center mb-4 bg-black/30 p-3 rounded-2xl backdrop-blur-md border border-white/10 z-50">
+            <div class="flex items-center gap-2">
+                <div id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-600 text-gray-300 transition-colors flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-current animate-pulse"></span>
+                    <span id="status-text">連線中...</span>
+                </div>
+            </div>
+            <div class="flex gap-2 text-xs">
+                <button onclick="router('welcome')" class="border border-white/20 px-3 py-1 rounded hover:bg-white hover:text-red-900 transition">玩家 Player</button>
+                <button onclick="router('dashboard')" class="border border-white/20 px-3 py-1 rounded hover:bg-white hover:text-red-900 transition">大螢幕 Screen</button>
+                <button onclick="router('admin')" class="bg-yellow-600 text-black px-3 py-1 rounded font-bold hover:bg-yellow-500 transition">後台 Admin</button>
+            </div>
+        </nav>
+
+        <!-- 內容渲染區 -->
+        <main id="view-container" class="flex-grow flex flex-col relative w-full"></main>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚙️ 設定區 (已填入您的網址)
+        // ==========================================
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxOiHFTrGIgUKCOhStPgFG9tq-gWO8aDaVyVoqNaMD2tFPO8U6i7nBdrGpky8Wt4wr1Eg/exec'; 
+
+        // ==========================================
+        // 📚 題庫 (30題範例)
+        // ==========================================
+        const RIDDLES = [
+            { id: 1, cn: "十五天 (打一字)", en: "Fifteen days (Guess a character)", ans: "胖", opts: ["胖", "腫", "胃", "朋"] },
+            { id: 2, cn: "紅關公，白劉備，黑張飛，三結義。(打一水果)", en: "Red outside, white inside, black seeds.", ans: "西瓜", opts: ["西瓜", "火龍果", "蘋果", "山竹"] },
+            { id: 3, cn: "名字叫牛不是牛，不會拉車只會游。(打一動物)", en: "Named 'cow' but works in water.", ans: "蝸牛", opts: ["水牛", "蝸牛", "海牛", "犀牛"] },
+            { id: 4, cn: "白白身子圓又圓，掉進海裡游一圈。(打一節慶食物)", en: "White and round body, swims in soup.", ans: "湯圓", opts: ["水餃", "湯圓", "饅頭", "魚丸"] },
+            { id: 5, cn: "一加一不是二。(打一字)", en: "One plus one is not two.", ans: "王", opts: ["王", "丰", "三", "土"] },
+            { id: 6, cn: "千條線，萬條線，掉在水裡看不見。(打一自然現象)", en: "Thousands of threads vanish in water.", ans: "雨", opts: ["雪", "雨", "風", "霧"] },
+            { id: 7, cn: "有風不動無風動，不動無風動有風。(打一用品)", en: "Moves when no wind, creates wind moving.", ans: "扇子", opts: ["風車", "扇子", "旗子", "風鈴"] },
+            { id: 8, cn: "耳朵長，尾巴短，紅眼睛，白毛衫。(打一動物)", en: "Long ears, red eyes.", ans: "兔子", opts: ["老鼠", "兔子", "貓咪", "羊"] },
+            { id: 9, cn: "四四方方一座城，裡面住著大兵丁。(打一電器)", en: "Square city with soldiers inside.", ans: "電視", opts: ["冰箱", "電視", "烤箱", "微波爐"] },
+            { id: 10, cn: "兩兄弟，手拉手，一個轉，一個走。(打一文具)", en: "Two brothers, one turns, one walks.", ans: "圓規", opts: ["圓規", "剪刀", "尺", "鉛筆"] }
+            // 可繼續擴充至30題...
+        ];
+
+        // ==========================================
+        // 🧠 系統狀態
+        // ==========================================
+        const state = {
+            view: 'welcome',
+            user: { name: '', score: 0, answers: [] },
+            participants: [],
+            gameStatus: 'loading', // idle, active, ended, loading
+            timer: null
+        };
+
+        // 初始化
+        window.onload = () => {
+            lucide.createIcons();
+            router('welcome');
+            fetchData(); // 初始拉取
+            setInterval(fetchData, 5000); // 輪詢後端
+        };
+
+        // 數據同步
+        async function fetchData() {
+            try {
+                const res = await fetch(GAS_API_URL);
+                const data = await res.json();
+                
+                // 更新狀態
+                state.gameStatus = data.status || 'idle';
+                state.participants = data.participants || [];
+                
+                updateStatusUI();
+                
+                // 如果在大螢幕頁面，刷新排行榜
+                if (state.view === 'dashboard') renderDashboardUI();
+                
+                // 如果在歡迎頁，刷新開始按鈕
+                if (state.view === 'welcome') updateWelcomeButton();
+
+            } catch (e) {
+                console.error("API Error:", e);
+                document.getElementById('status-text').innerText = "連線失敗 OFF";
+                document.getElementById('status-badge').classList.add('bg-red-600');
+            }
+        }
+
+        function updateStatusUI() {
+            const badge = document.getElementById('status-badge');
+            const text = document.getElementById('status-text');
+            if(!text || !badge) return;
+
+            text.textContent = state.gameStatus.toUpperCase();
+            
+            let colorClass = 'bg-gray-600 text-gray-300';
+            if (state.gameStatus === 'active') colorClass = 'bg-green-500 text-white shadow-[0_0_10px_#22c55e]';
+            if (state.gameStatus === 'paused') colorClass = 'bg-yellow-500 text-black';
+            if (state.gameStatus === 'ended') colorClass = 'bg-red-600 text-white';
+
+            badge.className = `px-3 py-1 rounded-full text-xs font-bold transition-colors flex items-center gap-2 ${colorClass}`;
+        }
+
+        // 路由控制
+        function router(viewName) {
+            state.view = viewName;
+            const container = document.getElementById('view-container');
+            container.innerHTML = ''; // 清空
+
+            if (viewName === 'welcome') renderWelcome(container);
+            else if (viewName === 'game') renderGame(container);
+            else if (viewName === 'result') renderResult(container);
+            else if (viewName === 'dashboard') renderDashboard(container);
+            else if (viewName === 'admin') renderAdmin(container);
+
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 📱 視圖：歡迎頁 (Welcome)
+        // ==========================================
+        function renderWelcome(container) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center space-y-6 animate-fade-in w-full">
+                    <div class="space-y-2">
+                        <h1 class="text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-sm">元宵猜燈謎</h1>
+                        <h2 class="text-xl text-yellow-200/80 font-light tracking-widest">LANTERN FESTIVAL</h2>
+                    </div>
+                    
+                    <div class="w-full max-w-md bg-red-900/60 backdrop-blur-md border border-yellow-500/30 rounded-3xl p-8 shadow-2xl relative">
+                        <label class="block text-yellow-400 text-sm font-bold mb-2 text-left">參賽者姓名 / Name</label>
+                        <input type="text" id="username" class="w-full p-4 rounded-xl bg-black/40 border border-yellow-600/30 text-white focus:ring-2 focus:ring-yellow-500 outline-none mb-6 text-lg placeholder-white/20" placeholder="請輸入姓名..." onkeydown="if(event.key==='Enter') startGame()">
+                        
+                        <button id="start-btn" onclick="startGame()" class="w-full bg-gray-600 text-gray-400 font-bold text-xl py-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed transition-all" disabled>
+                            <i data-lucide="loader-2" class="animate-spin"></i> 載入中...
+                        </button>
+                        
+                        <div class="mt-4 text-xs text-yellow-200/50">
+                            * 需等待主持人開啟活動狀態
+                        </div>
+                    </div>
+                </div>
+            `;
+            updateWelcomeButton();
+        }
+
+        function updateWelcomeButton() {
+            const btn = document.getElementById('start-btn');
+            if (!btn) return;
+
+            if (state.gameStatus === 'active') {
+                btn.disabled = false;
+                btn.className = "w-full bg-gradient-to-r from-yellow-600 to-yellow-500 text-red-950 font-black text-xl py-4 rounded-xl shadow-lg hover:scale-105 flex items-center justify-center gap-2 cursor-pointer transition-all";
+                btn.innerHTML = `<i data-lucide="play"></i> 開始挑戰 START`;
+            } else if (state.gameStatus === 'idle') {
+                btn.disabled = true;
+                btn.className = "w-full bg-gray-600 text-gray-400 font-bold text-xl py-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
+                btn.innerHTML = `<i data-lucide="lock"></i> 活動準備中`;
+            } else if (state.gameStatus === 'paused') {
+                btn.disabled = true;
+                btn.className = "w-full bg-yellow-600/50 text-yellow-200 font-bold text-xl py-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
+                btn.innerHTML = `<i data-lucide="pause-circle"></i> 活動暫停中`;
+            } else {
+                btn.disabled = true;
+                btn.className = "w-full bg-red-800 text-red-300 font-bold text-xl py-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
+                btn.innerHTML = `<i data-lucide="x-circle"></i> 活動已結束`;
+            }
+            lucide.createIcons();
+        }
+
+        function startGame() {
+            const name = document.getElementById('username').value.trim();
+            if (!name) return alert('請輸入姓名');
+            if (state.gameStatus !== 'active') return alert('活動尚未開放');
+            
+            state.user.name = name;
+            state.user.score = 0;
+            state.user.answers = [];
+            router('game');
+        }
+
+        // ==========================================
+        // 🎮 視圖：遊戲頁 (Game)
+        // ==========================================
+        let currentQIndex = 0;
+        let timeLeft = 30;
+
+        function renderGame(container) {
+            currentQIndex = 0;
+            showQuestion(container);
+        }
+
+        function showQuestion(container) {
+            if (currentQIndex >= RIDDLES.length) {
+                router('result');
+                return;
+            }
+
+            const q = RIDDLES[currentQIndex];
+            timeLeft = 30;
+
+            container.innerHTML = `
+                <div class="max-w-md mx-auto h-full flex flex-col justify-center pb-10 w-full animate-fade-in">
+                    <div class="flex justify-between items-center mb-6 bg-black/30 p-4 rounded-2xl border border-white/10">
+                        <div class="flex items-center gap-2 text-yellow-400 font-mono text-2xl font-bold">
+                            <i data-lucide="timer"></i> <span id="timer">${timeLeft}</span>
+                        </div>
+                        <div class="text-gray-400 font-mono">Q ${currentQIndex + 1} / ${RIDDLES.length}</div>
+                    </div>
+
+                    <div class="bg-white text-gray-900 rounded-[2rem] p-8 shadow-2xl mb-6 flex flex-col items-center text-center border-4 border-yellow-500 relative overflow-hidden min-h-[220px] justify-center">
+                        <div class="absolute top-0 left-0 h-2 bg-gray-200 w-full">
+                            <div id="progress-bar" class="h-full bg-green-500 transition-all duration-1000" style="width: 100%"></div>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold mb-4 text-red-900">${q.cn}</h3>
+                        <p class="text-gray-500 font-medium text-sm border-t border-gray-100 pt-4 w-full">${q.en}</p>
+                    </div>
+
+                    <div class="grid gap-3" id="options-container">
+                        ${q.opts.map((opt, i) => `
+                            <button onclick="handleAnswer('${opt}')" class="w-full bg-red-900/40 hover:bg-yellow-500 hover:text-red-950 border border-yellow-500/30 text-white font-bold text-lg py-4 rounded-xl transition-all shadow-md backdrop-blur-sm flex items-center justify-between px-6 group">
+                                <span class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm">${['A','B','C','D'][i]}</span>
+                                    ${opt}
+                                </span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+
+            // 計時器邏輯
+            if (state.timer) clearInterval(state.timer);
+            state.timer = setInterval(() => {
+                timeLeft--;
+                const timerEl = document.getElementById('timer');
+                const progressEl = document.getElementById('progress-bar');
+                
+                if(timerEl) timerEl.innerText = timeLeft;
+                if(progressEl) progressEl.style.width = `${(timeLeft/30)*100}%`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(state.timer);
+                    handleAnswer(null); // 超時
+                }
+            }, 1000);
+        }
+
+        window.handleAnswer = function(ans) {
+            clearInterval(state.timer);
+            const q = RIDDLES[currentQIndex];
+            if (ans === q.ans) state.user.score++;
+            
+            state.user.answers.push({ id: q.id, ans: ans, correct: ans === q.ans });
+            currentQIndex++;
+            showQuestion(document.getElementById('view-container'));
+        };
+
+        // ==========================================
+        // 🏆 視圖：結果頁 (Result)
+        // ==========================================
+        function renderResult(container) {
+            submitScore();
+
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center space-y-8 animate-fade-in">
+                    <div class="relative">
+                        <i data-lucide="party-popper" class="text-yellow-400 w-24 h-24 animate-bounce relative z-10"></i>
+                        <div class="absolute inset-0 bg-yellow-400 blur-xl opacity-30 animate-pulse"></div>
+                    </div>
+                    
+                    <div class="bg-red-900/60 backdrop-blur-md border border-yellow-500/50 p-10 rounded-3xl shadow-2xl w-full max-w-md">
+                        <h2 class="text-3xl font-bold text-white mb-2">挑戰完成！</h2>
+                        <div class="flex justify-center items-baseline gap-2 mb-8 bg-black/20 py-6 rounded-2xl my-6 border border-white/5">
+                            <span class="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600">${state.user.score}</span>
+                            <span class="text-xl text-gray-500 font-bold">/ ${RIDDLES.length}</span>
+                        </div>
+                        <p class="text-green-400 text-sm mb-6 flex items-center justify-center gap-2 bg-green-500/10 py-2 rounded-lg">
+                            <i data-lucide="check-circle" size="16"></i> 成績已上傳
+                        </p>
+                        <button onclick="router('dashboard')" class="w-full bg-white text-red-900 font-bold py-4 rounded-xl hover:bg-gray-100 shadow-lg flex items-center justify-center gap-2">
+                            <i data-lucide="bar-chart-3"></i> 查看大螢幕 Dashboard
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function submitScore() {
+            const totalTime = Math.floor(Math.random() * 100) + 100; // 模擬時間
+            // 使用 no-cors 模式發送資料到 GAS
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' }, // GAS 接收 text/plain 較穩定
+                body: JSON.stringify({
+                    action: 'submit_score',
+                    name: state.user.name,
+                    score: state.user.score,
+                    time: totalTime
+                })
+            }).catch(e => console.error(e));
+        }
+
+        // ==========================================
+        // 📊 視圖：大螢幕 (Dashboard)
+        // ==========================================
+        let isRolling = false;
+        let drawInterval;
+
+        function renderDashboard(container) {
+            container.innerHTML = `
+                <div class="h-full flex flex-col gap-4 animate-fade-in">
+                    <!-- 頂部數據卡 -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="bg-yellow-500/20 border border-yellow-500/30 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2 bg-yellow-500/20 rounded-lg"><i data-lucide="users" class="text-yellow-400 w-6 h-6"></i></div>
+                            <div>
+                                <div class="text-2xl font-bold font-mono" id="db-count">0</div>
+                                <div class="text-xs text-yellow-200/60 uppercase">參賽人數</div>
+                            </div>
+                        </div>
+                         <div class="bg-blue-500/20 border border-blue-500/30 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2 bg-blue-500/20 rounded-lg"><i data-lucide="activity" class="text-blue-400 w-6 h-6"></i></div>
+                            <div>
+                                <div class="text-2xl font-bold font-mono" id="db-status">IDLE</div>
+                                <div class="text-xs text-blue-200/60 uppercase">活動狀態</div>
+                            </div>
+                        </div>
+                         <div class="hidden md:flex bg-green-500/20 border border-green-500/30 p-4 rounded-xl items-center gap-3">
+                            <div class="p-2 bg-green-500/20 rounded-lg"><i data-lucide="trophy" class="text-green-400 w-6 h-6"></i></div>
+                            <div>
+                                <div class="text-2xl font-bold font-mono" id="db-top">0</div>
+                                <div class="text-xs text-green-200/60 uppercase">最高分</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
+                        <!-- 左側：排行榜 -->
+                        <div class="w-full lg:w-1/3 bg-black/20 rounded-2xl p-4 flex flex-col border border-white/5 backdrop-blur-sm">
+                            <h3 class="text-xl font-bold text-yellow-200 mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
+                                <i data-lucide="crown" class="text-yellow-400"></i> 英雄榜 (Top 10)
+                            </h3>
+                            <div id="leaderboard-list" class="flex-grow overflow-y-auto space-y-2 pr-2">
+                                <div class="text-center text-gray-500 mt-10">載入數據中...</div>
+                            </div>
+                        </div>
+
+                        <!-- 右側：抽獎區 -->
+                        <div class="w-full lg:w-2/3 bg-gradient-to-br from-red-900 to-red-950 border border-yellow-500/30 rounded-2xl p-6 flex flex-col items-center justify-center relative shadow-2xl overflow-hidden">
+                             <!-- 裝飾背景 -->
+                             <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                             
+                             <h2 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-widest uppercase mb-8 drop-shadow-sm">LUCKY DRAW</h2>
+                             
+                             <div class="w-full max-w-md h-48 bg-black/40 rounded-3xl border-2 border-yellow-500/30 flex items-center justify-center mb-8 backdrop-blur-md relative overflow-hidden shadow-inner">
+                                 <div id="winner-display" class="text-5xl md:text-6xl font-black text-yellow-100 text-center">?</div>
+                             </div>
+
+                             <button id="draw-btn" onclick="toggleDraw()" class="px-10 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-red-900 text-2xl font-black rounded-full shadow-lg hover:scale-105 hover:shadow-yellow-500/50 transition flex items-center gap-2 border-2 border-yellow-400">
+                                 <i data-lucide="sparkles"></i> 開始抽獎
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderDashboardUI();
+            lucide.createIcons();
+        }
+
+        function renderDashboardUI() {
+            const countEl = document.getElementById('db-count');
+            const statusEl = document.getElementById('db-status');
+            const topEl = document.getElementById('db-top');
+            
+            if(countEl) countEl.innerText = state.participants.length;
+            if(statusEl) statusEl.innerText = state.gameStatus.toUpperCase();
+            
+            // 排序與渲染
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+
+            const sorted = [...state.participants].sort((a, b) => b.score - a.score || a.time - b.time).slice(0, 10);
+            if(topEl && sorted.length > 0) topEl.innerText = sorted[0].score;
+
+            if (sorted.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-500 mt-10">等待參賽者...</div>`;
+            } else {
+                list.innerHTML = sorted.map((p, i) => `
+                    <div class="flex items-center bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 ${i===0?'bg-yellow-400 text-red-900 shadow-lg': i===1?'bg-gray-400 text-gray-900': i===2?'bg-orange-700 text-orange-200':'bg-gray-800 text-gray-500'}">${i+1}</div>
+                        <div class="flex-grow truncate font-bold text-gray-200 text-lg">${p.name}</div>
+                        <div class="text-yellow-400 font-bold font-mono text-xl">${p.score}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        window.toggleDraw = function() {
+            const display = document.getElementById('winner-display');
+            const btn = document.getElementById('draw-btn');
+            
+            if (state.participants.length === 0) return alert('目前沒有參賽者數據');
+
+            if (!isRolling) {
+                isRolling = true;
+                btn.innerHTML = `<i data-lucide="stop-circle"></i> 停止 STOP`;
+                btn.className = "px-10 py-4 bg-red-600 text-white text-2xl font-black rounded-full shadow-lg hover:scale-105 transition flex items-center gap-2 border-2 border-red-400";
+                
+                drawInterval = setInterval(() => {
+                    const rand = state.participants[Math.floor(Math.random() * state.participants.length)];
+                    display.innerText = rand.name;
+                    display.className = "text-5xl md:text-6xl font-black text-gray-400 text-center blur-[2px]";
+                }, 50);
+            } else {
+                isRolling = false;
+                clearInterval(drawInterval);
+                btn.innerHTML = `<i data-lucide="sparkles"></i> 再次抽獎`;
+                btn.className = "px-10 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-red-900 text-2xl font-black rounded-full shadow-lg hover:scale-105 hover:shadow-yellow-500/50 transition flex items-center gap-2 border-2 border-yellow-400";
+                
+                display.className = "text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-500 text-center scale-110 transition-transform duration-300";
+            }
+            lucide.createIcons();
+        };
+
+        // ==========================================
+        // ⚙️ 視圖：後台 (Admin)
+        // ==========================================
+        function renderAdmin(container) {
+            container.innerHTML = `
+                <div class="bg-white text-gray-800 p-6 rounded-3xl h-full shadow-xl flex flex-col animate-fade-in">
+                    <h2 class="text-2xl font-bold text-red-900 mb-6 flex items-center gap-2 border-b pb-4">
+                        <i data-lucide="settings"></i> 管理者中控台
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="font-bold text-gray-600 mb-4 flex items-center gap-2"><i data-lucide="toggle-left"></i> 活動狀態控制</h3>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="updateStatus('idle')" class="p-4 rounded-xl border-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100 flex flex-col items-center gap-2 transition">
+                                    <i data-lucide="stop-circle" class="text-yellow-600"></i> 
+                                    <span class="font-bold text-yellow-800">準備中</span>
+                                </button>
+                                <button onclick="updateStatus('active')" class="p-4 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 flex flex-col items-center gap-2 transition">
+                                    <i data-lucide="play-circle" class="text-green-600"></i> 
+                                    <span class="font-bold text-green-800">進行中</span>
+                                </button>
+                                <button onclick="updateStatus('ended')" class="p-4 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 flex flex-col items-center gap-2 transition">
+                                    <i data-lucide="x-circle" class="text-red-600"></i> 
+                                    <span class="font-bold text-red-800">已結束</span>
+                                </button>
+                            </div>
+                            <div class="mt-4 p-3 bg-gray-100 rounded-lg text-xs text-gray-500">
+                                當前: <strong class="text-blue-600 uppercase">${state.gameStatus}</strong> (點擊按鈕後需輸入 admin)
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-gray-600 mb-4 flex items-center gap-2"><i data-lucide="database"></i> 數據管理</h3>
+                            <div class="space-y-3">
+                                <button onclick="clearData()" class="w-full border border-red-200 text-red-600 py-3 rounded-xl hover:bg-red-50 font-bold flex items-center justify-center gap-2 transition">
+                                    <i data-lucide="trash-2"></i> 清空所有數據 (Clear DB)
+                                </button>
+                                <button onclick="window.open('${GAS_API_URL.replace('exec', 'echo')}', '_blank')" class="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-bold flex items-center justify-center gap-2 transition">
+                                    <i data-lucide="external-link"></i> 開啟 Google Sheet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        window.updateStatus = function(status) {
+            const pwd = prompt("請輸入管理員密碼 (預設: admin)");
+            if (!pwd) return;
+
+            // Optimistic UI Update
+            const oldStatus = state.gameStatus;
+            state.gameStatus = status;
+            updateStatusUI();
+
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'update_status',
+                    status: status,
+                    password: pwd
+                })
+            }).then(() => {
+                // no-cors 無法確認成功，假設成功
+                console.log('Status update sent');
+            }).catch(() => {
+                state.gameStatus = oldStatus;
+                alert('連線失敗');
+            });
+        };
+
+        window.clearData = function() {
+            const pwd = prompt("⚠️ 警告：這將清空所有參賽者數據！\n請輸入密碼確認：");
+            if (!pwd) return;
+
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'clear_data', password: pwd })
+            }).then(() => {
+                state.participants = [];
+                alert('清空指令已發送');
+            });
+        };
+    </script>
+</body>
+</html>
